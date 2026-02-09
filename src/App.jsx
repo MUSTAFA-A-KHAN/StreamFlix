@@ -1,31 +1,31 @@
-import { useState } from 'react'
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import AgeGate from './components/AgeGate'
-import Layout from './components/layout/Layout'
-import AnimeBrowsePage from './pages/AnimeBrowse'
-import AnimeDetailsPage from './pages/AnimeDetails'
-import AnimePlayerPage from './pages/AnimePlayer'
-import BrowseMoviesPage from './pages/BrowseMovies'
-import HomePage from './pages/Home'
-import MovieDetailsPage from './pages/MovieDetails'
-import MoviePlayerPage from './pages/MoviePlayer'
-import WatchTrailerPage from './pages/WatchTrailer'
-import WatchlistPage from './pages/Watchlist'
+import { useState } from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import AgeGate from "./components/AgeGate";
+import Layout from "./components/layout/Layout";
+import AnimeBrowsePage from "./pages/AnimeBrowse";
+import AnimeDetailsPage from "./pages/AnimeDetails";
+import AnimePlayerPage from "./pages/AnimePlayer";
+import BrowseMoviesPage from "./pages/BrowseMovies";
+import HomePage from "./pages/Home";
+import MovieDetailsPage from "./pages/MovieDetails";
+import MoviePlayerPage from "./pages/MoviePlayer";
+import WatchTrailerPage from "./pages/WatchTrailer";
+import WatchlistPage from "./pages/Watchlist";
 
 // App Component
 function App() {
-  const [isVerified, setIsVerified] = useState(true)
+  const [isVerified, setIsVerified] = useState(true);
 
   const handleVerification = () => {
-    setIsVerified(true)
-  }
+    setIsVerified(true);
+  };
 
   if (!isVerified) {
-    return <AgeGate onVerified={handleVerification} />
+    return <AgeGate onVerified={handleVerification} />;
   }
 
   return (
-    <BrowserRouter basename="/ottPlatfrom">
+    <BrowserRouter basename="/StreamFlix">
       <Routes>
         {/* Layout Route */}
         <Route path="/" element={<Layout />}>
@@ -67,7 +67,7 @@ function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
-  )
+  );
 }
 
 // Not Found Page
@@ -88,8 +88,7 @@ const NotFoundPage = () => {
         </a>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default App
-
+export default App;

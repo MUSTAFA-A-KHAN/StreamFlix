@@ -1,7 +1,7 @@
 {
-  "name": "ott-platform",
+  "name": "stream-flix",
   "private": true,
-  "homepage": "https://MUSTAFA-A-KHAN.github.io/ottPlatfrom/",
+  "homepage": "https://MUSTAFA-A-KHAN.github.io/StreamFlix/",
   "version": "1.0.0",
   "type": "module",
   "scripts": {

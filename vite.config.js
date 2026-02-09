@@ -1,19 +1,20 @@
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/ottPlatfrom/", // ✅ IMPORTANT FIX
+  base: "/StreamFLix/", // ✅ IMPORTANT FIX
 
   plugins: [react()],
-  
+
   resolve: {
     alias: {
-      '@': '/src',
+      "@": "/src",
     },
   },
 
   server: {
     port: 3000,
-    open: true
-  }
-})
+    open: true,
+    allowedHosts: ["3qfvmv-3000.csb.app"],
+  },
+});
