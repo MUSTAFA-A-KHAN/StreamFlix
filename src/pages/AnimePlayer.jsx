@@ -516,6 +516,9 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
   const [isBuffering, setIsBuffering] = useState(false)
   const [showVolumeSlider, setShowVolumeSlider] = useState(false)
   const [convertedTracks, setConvertedTracks] = useState([])
+  const [userTracks, setUserTracks] = useState([])
+  const fileInputRef = useRef(null)
+  const createdBlobUrlsRef = useRef(new Set())
   const [brightness, setBrightness] = useState(1)
   const [showFeedback, setShowFeedback] = useState(null)
 
@@ -594,7 +597,9 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           console.log('[VideoPlayer] Direct fetch successful, content length:', srtContent.length)
           const vttContent = convertSrtToVtt(srtContent)
           const blob = new Blob([vttContent], { type: 'text/vtt' })
-          return URL.createObjectURL(blob)
+          const blobUrl = URL.createObjectURL(blob)
+          createdBlobUrlsRef.current.add(blobUrl)
+          return blobUrl
         }
       }
     } catch (err) {
@@ -617,7 +622,9 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           console.log('[VideoPlayer] Proxied fetch successful, content length:', srtContent.length)
           const vttContent = convertSrtToVtt(srtContent)
           const blob = new Blob([vttContent], { type: 'text/vtt' })
-          return URL.createObjectURL(blob)
+          const blobUrl = URL.createObjectURL(blob)
+          createdBlobUrlsRef.current.add(blobUrl)
+          return blobUrl
         }
       } else {
         console.log('[VideoPlayer] Proxied fetch returned status:', response.status)
@@ -918,6 +925,22 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     }
   }, [convertedTracks, subtitlesEnabled])
 
+  // Cleanup any created blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      try {
+        createdBlobUrlsRef.current.forEach((url) => {
+          if (url && url.startsWith && url.startsWith('blob:')) {
+            URL.revokeObjectURL(url)
+          }
+        })
+      } catch (e) {
+        // ignore
+      }
+      createdBlobUrlsRef.current.clear()
+    }
+  }, [])
+
   // Handle quality change
   const handleQualityChange = useCallback((newQuality) => {
     setQuality(newQuality)
@@ -950,6 +973,37 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     }
     setSubtitlesEnabled(newEnabledState)
   }, [subtitlesEnabled])
+
+  // Handle user subtitle file uploads (.srt or .vtt)
+  const handleFileInputChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      let vttContent = text
+      if (file.name.toLowerCase().endsWith('.srt')) {
+        vttContent = convertSrtToVtt(text)
+      } else if (!text.trim().startsWith('WEBVTT')) {
+        vttContent = convertSrtToVtt(text)
+      }
+      const blob = new Blob([vttContent], { type: 'text/vtt' })
+      const blobUrl = URL.createObjectURL(blob)
+      createdBlobUrlsRef.current.add(blobUrl)
+      const newTrack = {
+        vttUrl: blobUrl,
+        label: file.name,
+        lang: 'en',
+        index: `user-${Date.now()}`
+      }
+      setUserTracks(prev => [...prev, newTrack])
+      setSubtitlesEnabled(true)
+    } catch (err) {
+      console.error('Failed to load subtitle file', err)
+    } finally {
+      // reset input so same file can be uploaded again if needed
+      if (e.target) e.target.value = ''
+    }
+  }
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1366,7 +1420,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           crossOrigin="anonymous"
           style={{ filter: `brightness(${brightness})`, ...getZoomStyle() }}
         >
-          {convertedTracks.map((track) => (
+          {(userTracks && userTracks.length > 0 ? userTracks : convertedTracks).map((track) => (
             <track
               key={`track-${track.index}`}
               kind="subtitles"
@@ -1680,7 +1734,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                       )}
 
                       {/* Subtitle toggle */}
-                      {tracks.length > 0 && (
+                      {(tracks.length > 0 || userTracks.length > 0) && (
                         <button
                           onClick={toggleSubtitles}
                           className="w-full flex items-center justify-between px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white hover:bg-gray-700 transition-all touch-manipulation"
@@ -1691,6 +1745,23 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                           </span>
                         </button>
                       )}
+
+                      {/* Upload subtitle (user) */}
+                      <div className="mt-2">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".srt,.vtt,text/vtt,text/srt"
+                          className="hidden"
+                          onChange={handleFileInputChange}
+                        />
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full flex items-center justify-center px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white hover:bg-gray-700 transition-all touch-manipulation"
+                        >
+                          Upload Subtitle
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
