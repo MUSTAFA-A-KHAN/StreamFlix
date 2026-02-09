@@ -519,6 +519,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
   const [userTracks, setUserTracks] = useState([])
   const fileInputRef = useRef(null)
   const createdBlobUrlsRef = useRef(new Set())
+  const [selectedSubtitleKey, setSelectedSubtitleKey] = useState('none')
   const [brightness, setBrightness] = useState(1)
   const [showFeedback, setShowFeedback] = useState(null)
 
@@ -925,6 +926,31 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
     }
   }, [convertedTracks, subtitlesEnabled])
 
+  // Ensure a sensible default selection when tracks change
+  useEffect(() => {
+    const cloudExists = convertedTracks && convertedTracks.length > 0
+    const userExists = userTracks && userTracks.length > 0
+
+    const keyExists = (key) => {
+      if (!key || key === 'none') return false
+      if (key.startsWith('user-')) {
+        const idx = Number(key.split('-')[1])
+        return !isNaN(idx) && userTracks[idx]
+      }
+      if (key.startsWith('cloud-')) {
+        const idx = Number(key.split('-')[1])
+        return !isNaN(idx) && convertedTracks[idx]
+      }
+      return false
+    }
+
+    if (!keyExists(selectedSubtitleKey)) {
+      if (userExists) setSelectedSubtitleKey('user-0')
+      else if (cloudExists) setSelectedSubtitleKey('cloud-0')
+      else setSelectedSubtitleKey('none')
+    }
+  }, [convertedTracks, userTracks])
+
   // Cleanup any created blob URLs on unmount
   useEffect(() => {
     return () => {
@@ -995,7 +1021,11 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
         lang: 'en',
         index: `user-${Date.now()}`
       }
-      setUserTracks(prev => [...prev, newTrack])
+      setUserTracks(prev => {
+        const next = [...prev, newTrack]
+        setSelectedSubtitleKey(`user-${next.length - 1}`)
+        return next
+      })
       setSubtitlesEnabled(true)
     } catch (err) {
       console.error('Failed to load subtitle file', err)
@@ -1003,6 +1033,26 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
       // reset input so same file can be uploaded again if needed
       if (e.target) e.target.value = ''
     }
+  }
+
+  const removeUserTrack = (index) => {
+    const idx = Number(index)
+    if (isNaN(idx)) return
+    setUserTracks(prev => {
+      const track = prev[idx]
+      if (track && track.vttUrl && track.vttUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(track.vttUrl) } catch(e) {}
+        createdBlobUrlsRef.current.delete(track.vttUrl)
+      }
+      const next = prev.filter((_, i) => i !== idx)
+      // adjust selection
+      if (selectedSubtitleKey === `user-${idx}`) {
+        if (next.length > 0) setSelectedSubtitleKey(`user-0`)
+        else if (convertedTracks.length > 0) setSelectedSubtitleKey(`cloud-0`)
+        else setSelectedSubtitleKey('none')
+      }
+      return next
+    })
   }
 
   // Keyboard shortcuts
@@ -1420,16 +1470,28 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
           crossOrigin="anonymous"
           style={{ filter: `brightness(${brightness})`, ...getZoomStyle() }}
         >
-          {(userTracks && userTracks.length > 0 ? userTracks : convertedTracks).map((track) => (
-            <track
-              key={`track-${track.index}`}
-              kind="subtitles"
-              src={track.vttUrl}
-              srclang={track.lang || 'en'}
-              label={track.label || 'English'}
-              default={true}
-            />
-          ))}
+          {(() => {
+            if (selectedSubtitleKey === 'none') return null
+            let track = null
+            if (selectedSubtitleKey.startsWith('user-')) {
+              const idx = Number(selectedSubtitleKey.split('-')[1])
+              track = userTracks[idx]
+            } else if (selectedSubtitleKey.startsWith('cloud-')) {
+              const idx = Number(selectedSubtitleKey.split('-')[1])
+              track = convertedTracks[idx]
+            }
+            if (!track) return null
+            return (
+              <track
+                key={`track-${track.index}`}
+                kind="subtitles"
+                src={track.vttUrl}
+                srclang={track.lang || 'en'}
+                label={track.label || 'English'}
+                default={true}
+              />
+            )
+          })()}
         </video>
       )}
 
@@ -1746,8 +1808,8 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                         </button>
                       )}
 
-                      {/* Upload subtitle (user) */}
-                      <div className="mt-2">
+                      {/* Subtitle selection + Upload/Delete UI */}
+                      <div className="mt-2 space-y-2">
                         <input
                           ref={fileInputRef}
                           type="file"
@@ -1755,12 +1817,44 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                           className="hidden"
                           onChange={handleFileInputChange}
                         />
-                        <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full flex items-center justify-center px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white hover:bg-gray-700 transition-all touch-manipulation"
-                        >
-                          Upload Subtitle
-                        </button>
+
+                        <div className="flex gap-2">
+                          <select
+                            value={selectedSubtitleKey}
+                            onChange={(e) => setSelectedSubtitleKey(e.target.value)}
+                            className="flex-1 px-2 py-1.5 bg-gray-800 rounded-lg text-sm text-white border border-white/10 focus:outline-none"
+                          >
+                            <option value="none">No Subtitles</option>
+                            {convertedTracks.map((t, i) => (
+                              <option key={`cloud-${i}`} value={`cloud-${i}`}>
+                                {`Cloud: ${t.label || t.lang || 'Subtitle ' + (i+1)}`}
+                              </option>
+                            ))}
+                            {userTracks.map((t, i) => (
+                              <option key={`user-${i}`} value={`user-${i}`}>
+                                {`Uploaded: ${t.label || 'File ' + (i+1)}`}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-3 py-1.5 bg-gray-800 rounded-lg text-sm text-white hover:bg-gray-700"
+                          >
+                            Upload
+                          </button>
+                        </div>
+
+                        {selectedSubtitleKey.startsWith('user-') && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => removeUserTrack(selectedSubtitleKey.split('-')[1])}
+                              className="flex-1 px-3 py-1.5 bg-red-700 rounded-lg text-sm text-white hover:bg-red-600"
+                            >
+                              Delete Uploaded
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
