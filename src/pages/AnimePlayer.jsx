@@ -1813,7 +1813,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                         <input
                           ref={fileInputRef}
                           type="file"
-                          accept=".srt,.vtt,text/vtt,text/srt"
+                          accept="text/plain,text/vtt,.srt,.vtt"
                           className="hidden"
                           onChange={handleFileInputChange}
                         />
