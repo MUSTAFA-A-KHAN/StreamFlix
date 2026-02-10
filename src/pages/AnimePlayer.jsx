@@ -254,11 +254,9 @@ const AnimePlayerPage = () => {
   const handleTypeChange = (type) => {
     setSelectedType(type)
     const availableServers = servers[type] || []
-    if (availableServers.length > 0) {
-      setSelectedServer(availableServers[0])
-    } else {
-      setSelectedServer(null)
-    }
+    // Prioritize HD-2 server, otherwise use first available
+    const hd2Server = findHd2Server(availableServers)
+    setSelectedServer(hd2Server || availableServers[0] || null)
     setVideoUrl(null)
     setStreamData(null)
   }
