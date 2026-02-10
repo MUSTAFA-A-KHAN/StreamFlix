@@ -44,6 +44,13 @@ const PROVIDER_OPTIONS = [
   { id: 'animepahe', label: 'AnimePahe' }
 ]
 
+// Helper function to find HD-2 server from list (case-insensitive, whitespace-insensitive)
+const findHd2Server = (servers) => {
+  return servers.find(server => 
+    server.name?.toLowerCase().replace(/\s+/g, '') === 'hd-2'
+  )
+}
+
 const AnimePlayerPage = () => {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
@@ -158,10 +165,10 @@ const AnimePlayerPage = () => {
           setServers(newServers)
           setEpisodeData({ episode: serverData.episode })
 
+          // Prioritize HD-2 server, otherwise use first available
           const availableServers = newServers[selectedType] || newServers.sub || []
-          if (availableServers.length > 0) {
-            setSelectedServer(availableServers[0])
-          }
+          const hd2Server = findHd2Server(availableServers)
+          setSelectedServer(hd2Server || availableServers[0] || null)
         }
       } catch (err) {
         if (err.message === 'Request cancelled' || !isMounted) return;
@@ -1813,7 +1820,7 @@ const VideoPlayer = ({ src, poster, tracks = [], animeId, episodeNumber, onNextE
                         <input
                           ref={fileInputRef}
                           type="file"
-                          accept=".srt,.vtt,text/vtt,text/srt"
+                          accept="text/plain,text/vtt,.srt,.vtt"
                           className="hidden"
                           onChange={handleFileInputChange}
                         />
