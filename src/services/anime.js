@@ -15,10 +15,10 @@ import {
 } from '../utils/apiCache';
 
 // API Configuration
-const API_LOCAL = 'https://hianimeapi-6uju.onrender.com/api/v1';
-const API_EXTERNAL = 'https://hianimeapi-6uju.onrender.com/api/v1';
+const API_LOCAL = 'https://hianime-api-wrvi.onrender.com/api/v1';
+const API_EXTERNAL = 'https://hianime-api-wrvi.onrender.com/api/v1';
 const API_ROOT = API_LOCAL;
-const PROXY_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1';
+const PROXY_BASE = 'https://hianime-api-wrvi.onrender.com/api/v1';
 
 // ==================== RETRY CONFIGURATION ====================
 
@@ -597,7 +597,7 @@ export const getStreamLink = async (streamId, server = 'hd-1', type = 'sub', pro
   // For stream endpoints, use the internal URL construction
   const isStreamEndpoint = endpoint.includes("stream");
   const url = isStreamEndpoint 
-    ? `${"https://hianimeapi-6uju.onrender.com/api/v1"}${endpoint}`
+    ? `${"https://hianime-api-wrvi.onrender.com/api/v1"}${endpoint}`
     : `${API_ROOT}${endpoint}`;
     
   const cacheKey = `anime_stream_${generateRequestKey('stream', { streamId, server, type, provider })}`;
