@@ -11,7 +11,7 @@ import {
   FiTrendingUp,
   FiX
 } from 'react-icons/fi'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { AnimeCarousel } from '../components/movie/AnimeCarousel'
 import { SkeletonHero, SkeletonRow } from '../components/ui/Skeleton'
 import {
@@ -46,7 +46,10 @@ const BROWSE_CATEGORIES = [
 
 // Anime Browse Page
 const AnimeBrowsePage = () => {
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialQuery = searchParams.get('q') || ''
+
+  const [searchQuery, setSearchQuery] = useState(initialQuery)
   const [homeData, setHomeData] = useState(null)
   const [spotlight, setSpotlight] = useState([])
   const [sections, setSections] = useState({
@@ -63,9 +66,67 @@ const AnimeBrowsePage = () => {
   const [currentCategory, setCurrentCategory] = useState('trending')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [searchMode, setSearchMode] = useState(false)
+  const [searchMode, setSearchMode] = useState(!!initialQuery)
   const [selectedProvider, setSelectedProvider] = useState('hianime-scrap')
   const [showFilters, setShowFilters] = useState(false)
+
+  // Handle URL search param changes
+  useEffect(() => {
+    const q = searchParams.get('q') || ''
+    if (q !== searchQuery) {
+      setSearchQuery(q)
+    }
+
+    // If there's a search query in the URL, trigger the search
+    // This allows searching from the top navbar to work correctly
+    // even if we are already on the anime page
+    if (q) {
+      setSearchMode(true)
+
+      // Only auto-search if not already showing results for this query
+      const autoSearch = async () => {
+        setSections(prev => ({
+          ...prev,
+          trending: { ...prev.trending, loading: true, error: null }
+        }))
+
+        try {
+          const data = await searchAnime(q, 1, selectedProvider)
+
+          if (data.data && data.data.response) {
+            setSections(prev => ({
+              ...prev,
+              trending: {
+                data: data.data.response,
+                loading: false,
+                error: null
+              }
+            }))
+            setTotalPages(data.data.pageInfo?.totalPages || 1)
+          } else {
+            setSections(prev => ({
+              ...prev,
+              trending: { data: [], loading: false, error: null }
+            }))
+          }
+        } catch (err) {
+          console.error('Search error:', err)
+          setSections(prev => ({
+            ...prev,
+            trending: {
+              data: [],
+              loading: false,
+              error: err.message || 'Failed to search anime'
+            }
+          }))
+        }
+      }
+
+      autoSearch()
+    } else if (!q && searchMode && !searchQuery) {
+      setSearchMode(false)
+    }
+  }, [searchParams, selectedProvider])
 
   // Fetch home data and spotlight on page load - with proper cleanup to prevent duplicates
   useEffect(() => {
@@ -188,10 +249,12 @@ const AnimeBrowsePage = () => {
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
       setSearchMode(false)
+      setSearchParams({})
       return
     }
 
     setSearchMode(true)
+    setSearchParams({ q: searchQuery.trim() })
 
     // Update trending section to show loading
     setSections(prev => ({
@@ -281,6 +344,7 @@ const AnimeBrowsePage = () => {
     setSearchMode(false)
     setPage(1)
     setShowFilters(false)
+    setSearchParams({})
   }
 
   if (loading) {
