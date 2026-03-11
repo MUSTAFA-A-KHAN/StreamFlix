@@ -8,5 +8,3 @@ Port 3000 is in use, trying another one...
 
   ➜  Local:   http://localhost:3001/StreamFlix/
   ➜  Network: use --host to expose
-8:39:02 AM [vite] hmr update /src/components/search/SearchBar.jsx, /src/index.css
-8:39:12 AM [vite] hmr update /src/pages/AnimeBrowse.jsx, /src/index.css
