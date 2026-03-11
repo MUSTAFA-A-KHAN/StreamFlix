@@ -21,7 +21,7 @@ export const SearchBar = ({
   const navigate = useNavigate()
   const location = useLocation()
 
-  const isAnimePage = location.pathname.startsWith('/anime')
+  const isAnimePage = location.pathname.startsWith('/anime') || location.pathname.startsWith('/watch/anime')
   const actualPlaceholder = isAnimePage ? 'Search anime...' : placeholder
   
   // Close suggestions when clicking outside
