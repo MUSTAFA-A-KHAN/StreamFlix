@@ -1,0 +1,12 @@
+
+> stream-flix@1.0.0 dev
+> vite
+
+Port 3000 is in use, trying another one...
+
+  VITE v5.4.21  ready in 283 ms
+
+  ➜  Local:   http://localhost:3001/StreamFlix/
+  ➜  Network: use --host to expose
+8:39:02 AM [vite] hmr update /src/components/search/SearchBar.jsx, /src/index.css
+8:39:12 AM [vite] hmr update /src/pages/AnimeBrowse.jsx, /src/index.css

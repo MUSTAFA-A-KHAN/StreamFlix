@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FiClock, FiFilm, FiLoader, FiMic, FiSearch, FiStar, FiTrendingUp, FiTv, FiUser, FiX } from 'react-icons/fi'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { searchAnime } from '../../services/anime'
 import * as tmdbService from '../../services/tmdb'
 import { debounce } from '../../utils/helpers'
 
@@ -18,6 +19,10 @@ export const SearchBar = ({
   const wrapperRef = useRef(null)
   const inputRef = useRef(null)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  const isAnimePage = location.pathname.startsWith('/anime')
+  const actualPlaceholder = isAnimePage ? 'Search anime...' : placeholder
   
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -31,7 +36,7 @@ export const SearchBar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
   
-  // Fetch real search suggestions from TMDB
+  // Fetch real search suggestions
   const fetchSuggestions = async (searchQuery) => {
     if (searchQuery.length < 2) {
       setSuggestions([])
@@ -40,20 +45,36 @@ export const SearchBar = ({
     
     setLoading(true)
     try {
-      const response = await tmdbService.searchMulti(searchQuery)
-      const formattedSuggestions = response.results
-        .filter(item => item.media_type === 'movie' || item.media_type === 'tv' || item.media_type === 'person')
-        .slice(0, 6)
-        .map(item => ({
-          id: item.id,
-          title: item.title || item.name,
-          media_type: item.media_type,  // Use media_type for compatibility with MovieCard
-          poster_path: item.poster_path,
-          profile_path: item.profile_path,
-          release_date: item.release_date || item.first_air_date,
-          known_for: item.known_for ? item.known_for.slice(0, 2).map(k => k.title || k.name) : [],
-        }))
-      setSuggestions(formattedSuggestions)
+      if (isAnimePage) {
+        const response = await searchAnime(searchQuery, 1)
+        const results = response?.data?.response || []
+        const formattedSuggestions = results
+          .slice(0, 6)
+          .map(item => ({
+            id: item.id,
+            title: item.title || item.name,
+            media_type: 'anime',
+            poster_path: item.poster || item.image,
+            release_date: item.releaseDate || item.year,
+            type: item.type,
+          }))
+        setSuggestions(formattedSuggestions)
+      } else {
+        const response = await tmdbService.searchMulti(searchQuery)
+        const formattedSuggestions = response.results
+          .filter(item => item.media_type === 'movie' || item.media_type === 'tv' || item.media_type === 'person')
+          .slice(0, 6)
+          .map(item => ({
+            id: item.id,
+            title: item.title || item.name,
+            media_type: item.media_type,  // Use media_type for compatibility with MovieCard
+            poster_path: item.poster_path,
+            profile_path: item.profile_path,
+            release_date: item.release_date || item.first_air_date,
+            known_for: item.known_for ? item.known_for.slice(0, 2).map(k => k.title || k.name) : [],
+          }))
+        setSuggestions(formattedSuggestions)
+      }
     } catch (error) {
       console.error('Error fetching suggestions:', error)
       setSuggestions([])
@@ -64,10 +85,52 @@ export const SearchBar = ({
   
   // Debounced search
   const debouncedSearch = useCallback(
-    debounce((searchQuery) => {
-      fetchSuggestions(searchQuery)
+    debounce(async (searchQuery) => {
+      if (searchQuery.length < 2) {
+        setSuggestions([])
+        return
+      }
+
+      setLoading(true)
+      try {
+        if (isAnimePage) {
+          const response = await searchAnime(searchQuery, 1)
+          const results = response?.data?.animes || response?.data?.response || response?.results || []
+          const formattedSuggestions = results
+            .slice(0, 6)
+            .map(item => ({
+              id: item.id,
+              title: item.title || item.name,
+              media_type: 'anime',
+              poster_path: item.poster || item.image,
+              release_date: item.releaseDate || item.year,
+              type: item.type,
+            }))
+          setSuggestions(formattedSuggestions)
+        } else {
+          const response = await tmdbService.searchMulti(searchQuery)
+          const formattedSuggestions = response.results
+            .filter(item => item.media_type === 'movie' || item.media_type === 'tv' || item.media_type === 'person')
+            .slice(0, 6)
+            .map(item => ({
+              id: item.id,
+              title: item.title || item.name,
+              media_type: item.media_type,  // Use media_type for compatibility with MovieCard
+              poster_path: item.poster_path,
+              profile_path: item.profile_path,
+              release_date: item.release_date || item.first_air_date,
+              known_for: item.known_for ? item.known_for.slice(0, 2).map(k => k.title || k.name) : [],
+            }))
+          setSuggestions(formattedSuggestions)
+        }
+      } catch (error) {
+        console.error('Error fetching suggestions:', error)
+        setSuggestions([])
+      } finally {
+        setLoading(false)
+      }
     }, 300),
-    []
+    [isAnimePage]
   )
   
   const handleChange = (e) => {
@@ -87,7 +150,11 @@ export const SearchBar = ({
   const handleSubmit = (e) => {
     e.preventDefault()
     if (query.trim()) {
-      navigate(`/browse?q=${encodeURIComponent(query.trim())}`)
+      if (isAnimePage) {
+        navigate(`/anime?q=${encodeURIComponent(query.trim())}`)
+      } else {
+        navigate(`/browse?q=${encodeURIComponent(query.trim())}`)
+      }
       setIsSuggestionsVisible(false)
       onSearch?.(query.trim())
     }
@@ -109,6 +176,8 @@ export const SearchBar = ({
       navigate(`/tv/${suggestion.id}`)
     } else if (suggestion.media_type === 'person') {
       navigate(`/person/${suggestion.id}`)
+    } else if (suggestion.media_type === 'anime') {
+      navigate(`/anime/${suggestion.id}`)
     }
     setIsSuggestionsVisible(false)
     setQuery('')
@@ -129,6 +198,8 @@ export const SearchBar = ({
         return { icon: FiTv, color: 'text-purple-400', bg: 'bg-purple-400/10', label: 'TV Show' }
       case 'person':
         return { icon: FiUser, color: 'text-green-400', bg: 'bg-green-400/10', label: 'Person' }
+      case 'anime':
+        return { icon: FiFilm, color: 'text-purple-400', bg: 'bg-purple-400/10', label: 'Anime' }
       default:
         return { icon: FiFilm, color: 'text-gray-400', bg: 'bg-gray-400/10', label: mediaType }
     }
@@ -153,7 +224,7 @@ export const SearchBar = ({
           value={query}
           onChange={handleChange}
           onFocus={handleInputFocus}
-          placeholder={placeholder}
+          placeholder={actualPlaceholder}
           autoComplete="off"
           className="w-full pl-12 pr-28 py-3.5
             bg-gray-800/80 backdrop-blur-sm
@@ -210,7 +281,15 @@ export const SearchBar = ({
                 {suggestions.map((suggestion) => {
                   const mediaInfo = getMediaTypeInfo(suggestion.media_type)
                   const Icon = mediaInfo.icon
-                  const imagePath = suggestion.media_type === 'person' ? suggestion.profile_path : suggestion.poster_path
+                  let imagePath = suggestion.media_type === 'person' ? suggestion.profile_path : suggestion.poster_path
+
+                  // For TMDB, the poster_path is just the path part, for anime it's a full URL
+                  let imageUrl
+                  if (suggestion.media_type === 'anime') {
+                    imageUrl = imagePath || 'https://via.placeholder.com/92x138?text=No+Image'
+                  } else if (imagePath) {
+                    imageUrl = `https://image.tmdb.org/t/p/w92${imagePath}`
+                  }
                   
                   return (
                     <button
@@ -220,9 +299,9 @@ export const SearchBar = ({
                       className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-700/70 transition-all duration-150 group"
                     >
                       {/* Thumbnail */}
-                      {imagePath ? (
+                      {imageUrl ? (
                         <img
-                          src={`https://image.tmdb.org/t/p/w92${imagePath}`}
+                          src={imageUrl}
                           alt={suggestion.title}
                           className="w-10 h-14 object-cover rounded-lg shadow-md group-hover:scale-105 transition-transform duration-200"
                         />
@@ -253,6 +332,12 @@ export const SearchBar = ({
                           {suggestion.media_type === 'person' && suggestion.known_for && suggestion.known_for.length > 0 && (
                             <span className="text-xs text-gray-500 truncate">
                               Known for: {suggestion.known_for.join(', ')}
+                            </span>
+                          )}
+                          {/* Type (for anime) */}
+                          {suggestion.media_type === 'anime' && suggestion.type && (
+                            <span className="text-xs text-gray-500 truncate capitalize">
+                              {suggestion.type}
                             </span>
                           )}
                         </div>
@@ -341,4 +426,3 @@ export const SearchSuggestions = () => {
 }
 
 export default SearchBar
-
