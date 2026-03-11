@@ -34,8 +34,12 @@ import {
   getProxiedStreamUrl,
   getProxiedSubtitleUrl,
   getServers,
-  getStreamLink
+  getStreamLink,
+  getTopTen,
+  browseByGenre
 } from '../services/anime'
+import Navbar from '../components/layout/Navbar'
+import { AnimeCarousel } from '../components/movie/AnimeCarousel'
 
 // Provider options
 const PROVIDER_OPTIONS = [
@@ -77,6 +81,9 @@ const AnimePlayerPage = () => {
   const [showEpisodes, setShowEpisodes] = useState(false)
   const [showServers, setShowServers] = useState(false)
 
+  const [suggestedAnime, setSuggestedAnime] = useState([])
+  const [loadingSuggested, setLoadingSuggested] = useState(false)
+
   // Fetch anime details and episodes - with proper cleanup to prevent duplicates
   useEffect(() => { 
     let isMounted = true;
@@ -90,6 +97,29 @@ const AnimePlayerPage = () => {
         
         if (!isMounted) return;
         setAnime(detailsData.data)
+
+        // Fetch suggested anime based on first genre, fallback to top ten
+        setLoadingSuggested(true)
+        try {
+          if (detailsData.data?.genres && detailsData.data.genres.length > 0) {
+            const firstGenre = detailsData.data.genres[0].toLowerCase().replace(/\s+/g, '-')
+            const genreData = await browseByGenre(firstGenre, 1, { signal: controller.signal })
+            if (isMounted && genreData?.data?.response) {
+              setSuggestedAnime(genreData.data.response.filter(a => a.id !== id).slice(0, 15))
+            }
+          } else {
+            const topData = await getTopTen({ signal: controller.signal })
+            if (isMounted && topData?.data?.response) {
+              setSuggestedAnime(topData.data.response.filter(a => a.id !== id).slice(0, 15))
+            }
+          }
+        } catch (err) {
+          if (err.message !== 'Request cancelled') {
+            console.error('Failed to load suggested anime:', err)
+          }
+        } finally {
+          if (isMounted) setLoadingSuggested(false)
+        }
         
         // Only fetch episodes if we haven't already for this ID/provider
         if (episodesFetched) return;
@@ -307,37 +337,12 @@ const AnimePlayerPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-xl border-b border-white/5">
-        <div className="container mx-auto flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-200 group touch-manipulation"
-          >
-            <FiArrowLeft size={16} className="sm:w-[18px] sm:h-[18px] text-gray-400 group-hover:text-white transition-colors" />
-            <span className="text-xs sm:text-sm text-gray-400 group-hover:text-white transition-colors">Back</span>
-          </button>
-
-          <div className="flex items-center gap-2 sm:gap-3 max-w-xs sm:max-w-md">
-            {posterUrl && (
-              <img
-                src={posterUrl}
-                alt={anime?.title}
-                className="w-6 h-9 sm:w-8 sm:h-11 object-cover rounded-md shadow-lg hidden md:block"
-              />
-            )}
-            <h1 className="font-semibold text-xs sm:text-sm md:text-base truncate max-w-[120px] sm:max-w-xs md:max-w-md text-white/90">
-              {anime?.title}
-            </h1>
-          </div>
-
-          <button className="p-1.5 sm:p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-red-400 transition-all duration-200 touch-manipulation">
-            <FiHeart size={16} className="sm:w-[18px] sm:h-[18px]" />
-          </button>
-        </div>
+      {/* Search Header */}
+      <div className="relative z-50">
+        <Navbar />
       </div>
 
-      <div className="pt-14">
+      <div className="pt-24 pb-8">
         {/* Video Player */}
         <div className="relative bg-black aspect-video w-full">
           {loadingStream ? (
@@ -477,6 +482,16 @@ const AnimePlayerPage = () => {
               onTypeChange={handleTypeChange}
             />
           )}
+        </div>
+
+        {/* Suggested Anime Section */}
+        <div className="container mx-auto px-4 py-8">
+          <AnimeCarousel
+            title="You May Also Like"
+            anime={suggestedAnime}
+            loading={loadingSuggested}
+            size="md"
+          />
         </div>
       </div>
     </div>
