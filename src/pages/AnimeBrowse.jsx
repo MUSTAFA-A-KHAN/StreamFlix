@@ -70,63 +70,60 @@ const AnimeBrowsePage = () => {
   const [selectedProvider, setSelectedProvider] = useState('hianime-scrap')
   const [showFilters, setShowFilters] = useState(false)
 
+  // Search execution logic
+  const executeSearch = useCallback(async (queryToSearch) => {
+    setSections(prev => ({
+      ...prev,
+      trending: { ...prev.trending, loading: true, error: null }
+    }))
+
+    try {
+      const data = await searchAnime(queryToSearch, 1, selectedProvider)
+
+      if (data.data && data.data.response) {
+        setSections(prev => ({
+          ...prev,
+          trending: {
+            data: data.data.response,
+            loading: false,
+            error: null
+          }
+        }))
+        setTotalPages(data.data.pageInfo?.totalPages || 1)
+      } else {
+        setSections(prev => ({
+          ...prev,
+          trending: { data: [], loading: false, error: null }
+        }))
+      }
+    } catch (err) {
+      console.error('Search error:', err)
+      setSections(prev => ({
+        ...prev,
+        trending: {
+          data: [],
+          loading: false,
+          error: err.message || 'Failed to search anime'
+        }
+      }))
+    }
+  }, [selectedProvider])
+
   // Handle URL search param changes
   useEffect(() => {
     const q = searchParams.get('q') || ''
-    if (q !== searchQuery) {
-      setSearchQuery(q)
-    }
 
-    // If there's a search query in the URL, trigger the search
-    // This allows searching from the top navbar to work correctly
-    // even if we are already on the anime page
+    // Only fetch if the query has changed, preventing double-fetch loops
     if (q) {
+      setSearchQuery(q)
       setSearchMode(true)
-
-      // Only auto-search if not already showing results for this query
-      const autoSearch = async () => {
-        setSections(prev => ({
-          ...prev,
-          trending: { ...prev.trending, loading: true, error: null }
-        }))
-
-        try {
-          const data = await searchAnime(q, 1, selectedProvider)
-
-          if (data.data && data.data.response) {
-            setSections(prev => ({
-              ...prev,
-              trending: {
-                data: data.data.response,
-                loading: false,
-                error: null
-              }
-            }))
-            setTotalPages(data.data.pageInfo?.totalPages || 1)
-          } else {
-            setSections(prev => ({
-              ...prev,
-              trending: { data: [], loading: false, error: null }
-            }))
-          }
-        } catch (err) {
-          console.error('Search error:', err)
-          setSections(prev => ({
-            ...prev,
-            trending: {
-              data: [],
-              loading: false,
-              error: err.message || 'Failed to search anime'
-            }
-          }))
-        }
-      }
-
-      autoSearch()
-    } else if (!q && searchMode && !searchQuery) {
+      executeSearch(q)
+    } else if (!q && searchMode) {
+      // If we navigate away from a ?q=... route back to /anime
+      setSearchQuery('')
       setSearchMode(false)
     }
-  }, [searchParams, selectedProvider])
+  }, [searchParams, executeSearch])
 
   // Fetch home data and spotlight on page load - with proper cleanup to prevent duplicates
   useEffect(() => {
@@ -245,54 +242,17 @@ const AnimeBrowsePage = () => {
     }
   }
 
-  // Search handler
-  const handleSearch = useCallback(async () => {
+  // Search handler (initiated from input button/enter)
+  const handleSearch = useCallback(() => {
     if (!searchQuery.trim()) {
       setSearchMode(false)
       setSearchParams({})
       return
     }
 
-    setSearchMode(true)
+    // Setting the search params triggers the useEffect above to fetch
     setSearchParams({ q: searchQuery.trim() })
-
-    // Update trending section to show loading
-    setSections(prev => ({
-      ...prev,
-      trending: { ...prev.trending, loading: true, error: null }
-    }))
-
-    try {
-      const data = await searchAnime(searchQuery.trim(), 1, selectedProvider)
-
-      if (data.data && data.data.response) {
-        setSections(prev => ({
-          ...prev,
-          trending: { 
-            data: data.data.response, 
-            loading: false, 
-            error: null 
-          }
-        }))
-        setTotalPages(data.data.pageInfo?.totalPages || 1)
-      } else {
-        setSections(prev => ({
-          ...prev,
-          trending: { data: [], loading: false, error: null }
-        }))
-      }
-    } catch (err) {
-      console.error('Search error:', err)
-      setSections(prev => ({
-        ...prev,
-        trending: { 
-          data: [], 
-          loading: false, 
-          error: err.message || 'Failed to search anime' 
-        }
-      }))
-    }
-  }, [searchQuery, selectedProvider])
+  }, [searchQuery, setSearchParams])
 
   // Handle Enter key
   const handleKeyPress = (e) => {

@@ -21,7 +21,7 @@ export const SearchBar = ({
   const navigate = useNavigate()
   const location = useLocation()
 
-  const isAnimePage = location.pathname.startsWith('/anime')
+  const isAnimePage = location.pathname.startsWith('/anime') || location.pathname.startsWith('/watch/anime')
   const actualPlaceholder = isAnimePage ? 'Search anime...' : placeholder
   
   // Close suggestions when clicking outside
@@ -35,53 +35,6 @@ export const SearchBar = ({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-  
-  // Fetch real search suggestions
-  const fetchSuggestions = async (searchQuery) => {
-    if (searchQuery.length < 2) {
-      setSuggestions([])
-      return
-    }
-    
-    setLoading(true)
-    try {
-      if (isAnimePage) {
-        const response = await searchAnime(searchQuery, 1)
-        const results = response?.data?.response || []
-        const formattedSuggestions = results
-          .slice(0, 6)
-          .map(item => ({
-            id: item.id,
-            title: item.title || item.name,
-            media_type: 'anime',
-            poster_path: item.poster || item.image,
-            release_date: item.releaseDate || item.year,
-            type: item.type,
-          }))
-        setSuggestions(formattedSuggestions)
-      } else {
-        const response = await tmdbService.searchMulti(searchQuery)
-        const formattedSuggestions = response.results
-          .filter(item => item.media_type === 'movie' || item.media_type === 'tv' || item.media_type === 'person')
-          .slice(0, 6)
-          .map(item => ({
-            id: item.id,
-            title: item.title || item.name,
-            media_type: item.media_type,  // Use media_type for compatibility with MovieCard
-            poster_path: item.poster_path,
-            profile_path: item.profile_path,
-            release_date: item.release_date || item.first_air_date,
-            known_for: item.known_for ? item.known_for.slice(0, 2).map(k => k.title || k.name) : [],
-          }))
-        setSuggestions(formattedSuggestions)
-      }
-    } catch (error) {
-      console.error('Error fetching suggestions:', error)
-      setSuggestions([])
-    } finally {
-      setLoading(false)
-    }
-  }
   
   // Debounced search
   const debouncedSearch = useCallback(
