@@ -663,7 +663,7 @@ const browseAbortManager = {
   }
 };
 
-const RENDER_PROXY = 'https://rust-proxy-fy7g.onrender.com';
+const RENDER_PROXY = 'https://rust-proxy-1-dg94.onrender.com';
 
 export const getProxiedStreamUrl = (originalUrl, referer = 'https://megacloud.tv') => {
   if (!originalUrl) return null;
