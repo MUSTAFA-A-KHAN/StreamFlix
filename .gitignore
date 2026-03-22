@@ -3,3 +3,4 @@ dist
 .env
 TODO_*
 *.zip
+*.log
