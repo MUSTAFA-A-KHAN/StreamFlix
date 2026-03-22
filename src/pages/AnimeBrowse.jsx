@@ -22,7 +22,7 @@ import {
 } from '../services/anime'
 
 // API Base
-const API_BASE = 'https://hianimeapi-6uju.onrender.com/api/v1'
+const API_BASE = 'https://hianime-api-wrvi.onrender.com/api/v1'
 
 // Provider options
 const PROVIDER_OPTIONS = [

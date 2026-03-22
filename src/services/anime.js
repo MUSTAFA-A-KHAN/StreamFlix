@@ -362,13 +362,14 @@ export const getHomeData = async (options = {}) => {
         ...options,
         signal,
         cacheKey,
+        timeout: 5000, // Reduced timeout since the new API is extremely slow
       });
       return data;
     },
     5 * 60 * 1000 // 5 minute cache TTL
   ).catch(error => {
-    // Don't retry on cancellation
-    if (error.message === 'Request cancelled') {
+    // Gracefully handle timeout and aborts to prevent infinite loading screens
+    if (error.message === 'Request cancelled' || error.message.includes('timeout')) {
       return { data: null };
     }
     throw error;
@@ -663,7 +664,7 @@ const browseAbortManager = {
   }
 };
 
-const RENDER_PROXY = 'https://rust-proxy-fy7g.onrender.com';
+const RENDER_PROXY = 'https://rust-proxy-1-dg94.onrender.com';
 
 export const getProxiedStreamUrl = (originalUrl, referer = 'https://megacloud.tv') => {
   if (!originalUrl) return null;
