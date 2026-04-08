@@ -62,11 +62,25 @@ const HomePage = () => {
     return <PageLoader />
   }
   
+  // Handle case where API fails and no featured content is loaded
+  const hasError = sections.trending.error && featured.length === 0;
+
   return (
     <div className="min-h-screen bg-gray-900">
       {/* Featured/Hero Section */}
       <section className="relative">
-        {featured.length > 0 ? (
+        {hasError ? (
+          <div className="h-[70vh] flex flex-col items-center justify-center text-center px-4 bg-gray-800/50">
+            <FiInfo className="text-red-500 w-16 h-16 mb-4" />
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Failed to load content</h2>
+            <p className="text-gray-400 max-w-md mx-auto mb-6">
+              There was an issue connecting to the movie database (TMDB). Please check your API key configuration.
+            </p>
+            <p className="text-gray-500 text-sm">
+              Error details: {sections.trending.error}
+            </p>
+          </div>
+        ) : featured.length > 0 ? (
           <FeaturedSection movies={featured} />
         ) : (
           <SkeletonHero />
@@ -74,7 +88,7 @@ const HomePage = () => {
       </section>
       
       {/* Content Sections */}
-      <div className="relative -mt-32 z-10 pb-12" style={{marginTop:"1rem"}}>
+      <div className={`relative ${hasError ? 'mt-8' : '-mt-32'} z-10 pb-12`} style={!hasError ? {marginTop:"1rem"} : {}}>
         {/* Trending Now */}
         <Carousel
           title="Trending Now"
